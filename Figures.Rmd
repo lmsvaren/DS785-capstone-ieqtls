@@ -1,0 +1,179 @@
+---
+title: "Untitled"
+author: "Levi Svaren"
+date: "2024-07-08"
+output: html_document
+---
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+```{r}
+#Box plot with violin plots
+plot_est_abundance <- function(est_fractions, tool) {
+  
+  if (tool == "CIBERSORTx") {
+    fractions <- read.csv(est_fractions, row.names=1, sep="\t")
+    cols <- dim(fractions)[2] - 3
+    fractions <- fractions[, 1:cols]
+  }
+  
+  if (tool == "BayesPrism") {
+    fractions <- read.csv(est_fractions, row.names=1)
+  }
+  
+  frac_long <- pivot_longer(fractions, cols=colnames(fractions),
+                              names_to = "cell_type",
+                              values_to = "abundance")
+  order = names(sort(colMeans(fractions), decreasing = TRUE))
+  
+  frac_long$cell_type <- factor(frac_long$cell_type, levels = order)
+  
+  plot <- ggplot(frac_long, aes(x=cell_type, y=abundance)) +
+    geom_violin() +
+    geom_boxplot(alpha=0.4) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(y = "Estimated Abundance",
+         x = "Cell Type")
+  
+  return(plot)
+}
+```
+
+# Plot
+```{r}
+tool <- "BayesPrism"
+# Periph
+plot_est_abundance("cellTypeFractions_periph_big.class_071424.csv", tool)
+
+# Macula
+plot_est_abundance("cellTypeFractions_macula_big.class_071424.csv", tool)
+```
+
+# FC differences
+```{r}
+lfc1.07 <- read.csv("cellTypeFractions_rc.periph_defaults_fc.1.07_071924.csv", row.names=1)
+lfc1.1 <- read.csv("cellTypeFractions_rc.periph_defaults_fc.1.1_071924.csv", row.names=1)
+lfc1.2 <- read.csv("cellTypeFractions_rc.periph_defaults_fc.1.2_071924.csv", row.names=1)
+lfc1.3 <- read.csv("cellTypeFractions_rc.periph_defaults_fc.1.3_071924.csv", row.names=1)
+lfc1.4 <- read.csv("cellTypeFractions_rc.periph_defaults_fc.1.4_071924.csv", row.names=1)
+
+#1.07
+frac_long1 <- pivot_longer(lfc1.07, cols=colnames(lfc1.07),
+                            names_to = "cell_type",
+                            values_to = "abundance")
+order = names(sort(colMeans(lfc1.07), decreasing = TRUE))
+frac_long1$cell_type <- factor(frac_long1$cell_type, levels = order)
+frac_long1$fc = "1.07"
+
+#1.1
+frac_long2 <- pivot_longer(lfc1.1, cols=colnames(lfc1.1),
+                            names_to = "cell_type",
+                            values_to = "abundance")
+order = names(sort(colMeans(lfc1.1), decreasing = TRUE))
+frac_long2$cell_type <- factor(frac_long1$cell_type, levels = order)
+frac_long2$fc = "1.1"
+
+#1.2
+frac_long3 <- pivot_longer(lfc1.2, cols=colnames(lfc1.2),
+                            names_to = "cell_type",
+                            values_to = "abundance")
+order = names(sort(colMeans(lfc1.2), decreasing = TRUE))
+frac_long3$cell_type <- factor(frac_long1$cell_type, levels = order)
+frac_long3$fc = "1.2"
+
+#1.3
+frac_long4 <- pivot_longer(lfc1.3, cols=colnames(lfc1.3),
+                            names_to = "cell_type",
+                            values_to = "abundance")
+order = names(sort(colMeans(lfc1.3), decreasing = TRUE))
+frac_long4$cell_type <- factor(frac_long1$cell_type, levels = order)
+frac_long4$fc = "1.3"
+
+#1.4
+frac_long5 <- pivot_longer(lfc1.4, cols=colnames(lfc1.4),
+                            names_to = "cell_type",
+                            values_to = "abundance")
+order = names(sort(colMeans(lfc1.4), decreasing = TRUE))
+frac_long5$cell_type <- factor(frac_long1$cell_type, levels = order)
+frac_long5$fc = "1.4"
+
+#all
+all <- rbind(frac_long1, frac_long2, frac_long3, frac_long4, frac_long5)
+
+ggplot(all, aes(x=cell_type, y=abundance, color=fc)) +
+    #geom_violin() +
+    geom_boxplot(alpha=0.4) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = "Cell type",
+         y = "Estimated Abundance")
+```
+
+# AMD Level
+
+```{r}
+per_covariates <- read.csv("peripheral_eqtl_15_peers_10_genot_PCs_other_covariates.txt", sep="\t", row.names = 1)
+per_covariates <- data.frame(t(per_covariates)) %>% select(mgs_level)
+
+
+mac_covariates <- read.csv("macular_batch_1_eqtl_25_peers_10_genot_PCs_other_covariates.txt", sep="\t", row.names = 1)
+mac_covariates <- data.frame(t(mac_covariates)) %>% select(mgs_level)
+```
+
+```{r}
+mac_results <- read.csv("cellTypeFractions_macula_big.class_071424.csv", row.names=1)
+per_results <- read.csv("cellTypeFractions_periph_big.class_071424.csv", row.names=1)
+  
+# Peripheral
+per <- merge(per_results, per_covariates, by="row.names")
+row.names(per) <- per$Row.names
+per <- per[,2:11]
+
+per_long <- pivot_longer(per, cols=-mgs_level,
+                         names_to = "cell_type",
+                         values_to = "abundance")
+per_long$tissue <- "Peripheral"
+
+# Macula
+mac <- merge(mac_results, mac_covariates, by="row.names")
+row.names(mac) <- mac$Row.names
+mac <- mac[,2:11]
+
+mac_long <- pivot_longer(mac, cols=-mgs_level,
+                         names_to = "cell_type",
+                         values_to = "abundance")
+mac_long$tissue <- "Macula"
+
+all <- rbind(per_long, mac_long)
+all$mgs_level <- factor(all$mgs_level, levels = c("1", "2", "3", "4"))
+
+# Plot all levels per cell type, per tissue
+ggplot(all, aes(x = mgs_level, y = abundance, fill=tissue)) +
+  geom_boxplot() +
+  facet_wrap(~ cell_type) +
+  theme_minimal()
+```
+
+```{r}
+# Just 3 tissues to focus on
+tissues3 <- all %>% filter(cell_type %in% c("Rods", "Astro", "RGC"))
+tissues3$cell_type <-  factor(tissues3$cell_type, levels = c("Rods", "Astro", "RGC"))
+
+ggplot(tissues3, aes(x = mgs_level, y = abundance, fill=tissue)) +
+  geom_boxplot(width=0.4) +
+  facet_wrap(~ cell_type) +
+  theme_minimal()
+```
+
+
+
+
+
+
+
